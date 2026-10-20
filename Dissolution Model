@@ -1,0 +1,55 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters (adjust based on your design)
+a = 0.02       # Side length of hexagon (cm)
+h = 0.05       # Height of microneedle (cm)
+N = 3364        # Number of microneedles in the patch
+D = 1e-8       # Diffusion coefficient (cm²/s)
+C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
+C_s = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
+k_erosion = 0.1  # Erosion rate constant (mg/s)
+n_erosion = 0.8  # Release exponent for erosion
+total_time = 300  # Total simulation time (5 minutes in seconds)
+time_points = np.linspace(0, total_time, 600)
+
+# Surface area of a single hexagonal microneedle
+A_hex = 6 * a * h + 3 * np.sqrt(3) * a**2
+
+# Total surface area for the patch
+A_total = N * A_hex
+
+# Volume of a single hexagonal microneedle
+V_hex = (3 * np.sqrt(3) / 2) * a**2 * h
+
+# Total vaccine per microneedle (mg)
+W_mn = C_0 * V_hex
+
+# Higuchi model (diffusion-controlled release)
+def higuchi_model(t):
+    return A_total * np.sqrt(D * (2 * C_0 - C_s) * C_s * t)
+
+# Erosion model (polymer degradation)
+def erosion_model(t):
+    return k_erosion * t**n_erosion
+
+# Combined release profile
+def combined_release(t):
+    Q_diff = higuchi_model(t)  # Diffusion contribution
+    Q_eros = erosion_model(t)  # Erosion contribution
+    return Q_diff + Q_eros
+
+# Calculate cumulative release
+Q_release = combined_release(time_points)
+
+# Plot the results
+plt.figure(figsize=(10, 6))
+plt.plot(time_points / 60, Q_release, 'b-', label="Total Vaccine Released (mg)")
+plt.plot(time_points / 60, higuchi_model(time_points), 'r--', label="Diffusion Component")
+plt.plot(time_points / 60, erosion_model(time_points), 'g--', label="Erosion Component")
+plt.xlabel("Time (minutes)")
+plt.ylabel("Cumulative Vaccine Released (mg)")
+plt.title("Vaccine Release from Hexagonal Microneedle Patch")
+plt.legend()
+plt.grid(True)
+plt.show()
