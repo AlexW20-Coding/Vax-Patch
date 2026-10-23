@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Parameters (adjust based on our design)
+# Parameters (adjustable for design)
 a = 0.02       # Side length of hexagon (cm)
 h = 0.05       # Height of microneedle (cm)
 N = 3364        # Number of microneedles in the patch
