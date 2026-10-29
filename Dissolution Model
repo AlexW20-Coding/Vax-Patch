@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Parameters (adjustable for design)
-a = 0.0025       # Side length of hexagon (cm)
+# Parameters (adjustable)
+a = 0.0025       # Center to flat of base (cm)
 h = 0.025       # Height of microneedle (cm)
-b = 0.001       # Side length of microneedle tip (cm)
+b = 4.3          # Taper angle of base of microneedle
 i = 0.0015      # Height of microneedle tip (cm)
+p = 13          # Taper angle of tip of microneedle
 N = 1786        # Number of microneedles in the patch
 D = 1e-8       # Diffusion coefficient (cm²/s)
 C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
@@ -15,15 +16,29 @@ n_erosion = 0.8  # Release exponent for erosion
 total_time = 3600  # Total simulation time (60 minutes in seconds)
 time_points = np.linspace(0, total_time, 3600)
 
+# Equations for Conversions from Parameters
+A = (2 * a) / np.sqrt(3)           # Initial base side length
+B = np.radians(b)           # Converting base angle to radians for equations
+P = np.radians(p)           # Converting tip angle to radians
+A_top = A - (h * np.tan(B)    # Initial tip side length 
+A_P = A_top - (i * np.tan(P)      # Tip side length as it decreases with taper angle
 
-# Surface area of a single hexagonal microneedle
-A_hex = 6 * a * h + 3 * np.sqrt(3) * a**2 + 6 * b * i + 3 * np.sqrt(3) * a**2 
+# Surface area and Volume of base hexagonal microneedle
+S = h / np.cos(B)               # Slant height of the base microneedle
+A_base = 3 * (A + A_top) * S       # Area of the outer base microneedles
+V_base = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
+
+# Surface area and Volume of tip hexagonal microneedle
+S_tip = i / np.cos(P)        # Slant height of the tip
+A_tip = 3 * (A_P + b) * S_P     # Full area of the sides of microneedle tip
+V_tip = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
 
 # Total surface area for the patch
+A_hex = A_base + A_tip
 A_total = N * A_hex
 
 # Volume of a single hexagonal microneedle
-V_hex = (3 * np.sqrt(3) / 2) * a**2 * h + (3 * np.sqrt(3) / 2) * b**2 * i
+V_hex = V_base + V_tip
 
 # Total vaccine per microneedle (mg)
 W_mn = C_0 * V_hex
