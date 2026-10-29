@@ -45,11 +45,11 @@ Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
 
 # Higuchi model (diffusion-controlled release)
 def higuchi_model(t):
-return A_total * np.sqrt(D * (2 * C_0 - C_s) * C_s * t)
+    return A_total * np.sqrt(D * (2 * C_0 - C_s) * C_s * t)
 
 # Erosion model (polymer degradation)
 def erosion_model(t):
-return k_erosion * t**n_erosion
+    return k_erosion * t**n_erosion
 
 # Combined total cumulative release profile (capped at total vaccine mass)
 Q_tot = higuchi_model(time_points) + erosion_model(time_points)
