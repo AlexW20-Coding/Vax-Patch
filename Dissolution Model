@@ -10,10 +10,11 @@ N = 1786        # Number of microneedles in the patch
 D = 1e-8       # Diffusion coefficient (cm²/s)
 C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
 C_s = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
-k_erosion = 0.1  # Erosion rate constant (mg/s)
+k_erosion = 5e-6  # Erosion rate constant (mg/s)
 n_erosion = 0.8  # Release exponent for erosion
 total_time = 3600  # Total simulation time (60 minutes in seconds)
 time_points = np.linspace(0, total_time, 3600)
+
 
 # Surface area of a single hexagonal microneedle
 A_hex = 6 * a * h + 3 * np.sqrt(3) * a**2 + 6 * b * i + 3 * np.sqrt(3) * a**2 
