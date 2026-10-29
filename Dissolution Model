@@ -2,9 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Parameters (adjustable for design)
-a = 0.02       # Side length of hexagon (cm)
-h = 0.05       # Height of microneedle (cm)
-N = 3364        # Number of microneedles in the patch
+a = 0.0025       # Side length of hexagon (cm)
+h = 0.025       # Height of microneedle (cm)
+b = 0.001       # Side length of microneedle tip (cm)
+i = 0.0015      # Height of microneedle tip (cm)
+N = 1786        # Number of microneedles in the patch
 D = 1e-8       # Diffusion coefficient (cm²/s)
 C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
 C_s = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
@@ -14,13 +16,13 @@ total_time = 300  # Total simulation time (5 minutes in seconds)
 time_points = np.linspace(0, total_time, 600)
 
 # Surface area of a single hexagonal microneedle
-A_hex = 6 * a * h + 3 * np.sqrt(3) * a**2
+A_hex = 6 * a * h + 3 * np.sqrt(3) * a**2 + 6 * b * i + 3 * np.sqrt(3) * a**2 
 
 # Total surface area for the patch
 A_total = N * A_hex
 
 # Volume of a single hexagonal microneedle
-V_hex = (3 * np.sqrt(3) / 2) * a**2 * h
+V_hex = (3 * np.sqrt(3) / 2) * a**2 * h + (3 * np.sqrt(3) / 2) * b**2 * i
 
 # Total vaccine per microneedle (mg)
 W_mn = C_0 * V_hex
