@@ -20,8 +20,8 @@ time_points = np.linspace(0, total_time, 3600)
 A = (2 * a) / np.sqrt(3)           # Initial base side length
 B = np.radians(b)           # Converting base angle to radians for equations
 P = np.radians(p)           # Converting tip angle to radians
-A_top = A - (h * np.tan(B)    # Initial tip side length 
-A_P = A_top - (i * np.tan(P)      # Tip side length as it decreases with taper angle
+A_top = A - (h * np.tan(B))    # Initial tip side length 
+A_P = A_top - (i * np.tan(P))      # Tip side length as it decreases with taper angle
 
 # Surface area and Volume of base hexagonal microneedle
 S = h / np.cos(B)               # Slant height of the base microneedle
@@ -30,8 +30,8 @@ V_base = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
 
 # Surface area and Volume of tip hexagonal microneedle
 S_tip = i / np.cos(P)        # Slant height of the tip
-A_tip = 3 * (A_P + b) * S_P     # Full area of the sides of microneedle tip
-V_tip = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
+A_tip = 3 * (A_P + A_top) * S_tip     # Full area of the sides of microneedle tip
+V_tip = (np.sqrt(3) / 2) * i * (A_top**2 + A_top * A_P + A_P**2)
 
 # Total surface area for the patch
 A_hex = A_base + A_tip
