@@ -13,7 +13,7 @@ C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
 C_s = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
 k_erosion = 5e-6  # Erosion rate constant (mg/s)
 n_erosion = 0.8  # Release exponent for erosion
-total_time = 600  # Total simulation time (minutes in seconds)
+total_time = 300  # Total simulation time (minutes in seconds)
 time_points = np.linspace(0, total_time, 3600)
 
 # Equations for Conversions from Parameters
