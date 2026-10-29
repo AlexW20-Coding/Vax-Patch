@@ -45,27 +45,19 @@ Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
 
 # Higuchi model (diffusion-controlled release)
 def higuchi_model(t):
-    return A_total * np.sqrt(D * (2 * C_0 - C_s) * C_s * t)
+return A_total * np.sqrt(D * (2 * C_0 - C_s) * C_s * t)
 
 # Erosion model (polymer degradation)
 def erosion_model(t):
-    return k_erosion * t**n_erosion
+return k_erosion * t**n_erosion
 
-# Combined release profile before cap
-def combined_release(t):
-    Q_diff = higuchi_model(t)  # Diffusion contribution
-    Q_eros = erosion_model(t)  # Erosion contribution
-    Q_tot = Q_diff + Q_eros     # Total contributions 
-
-# Calculate cumulative release with cap
-Q_release = np.minimum(Q_tot, Vac, Vac / Q_tot, 1.0)
-
-# Release profile with cap
-scale = np.where(Q_tot > Vac, 
+# Combined total cumulative release profile (capped at total vaccine mass)
+Q_tot = higuchi_model(time_points) + erosion_model(time_points)
+Q_release = np.minimum(Q_tot, Vac)
 
 # Plot the results
 plt.figure(figsize=(10, 6))
-plt.plot(time_points / 60, Q_release, 'b-', label="Total Vaccine Released (mg)")
+plt.plot(time_points / 60, Q_release, 'b-', linewidth = 2, label="Total Vaccine Released (mg)")
 plt.plot(time_points / 60, higuchi_model(time_points), 'r--', label="Diffusion Component")
 plt.plot(time_points / 60, erosion_model(time_points), 'g--', label="Erosion Component")
 plt.xlabel("Time (minutes)")
