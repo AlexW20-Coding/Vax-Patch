@@ -40,8 +40,8 @@ A_total = N * A_hex
 # Volume of a single hexagonal microneedle
 V_hex = V_base + V_tip
 
-# Total vaccine per microneedle (mg)
-W_mn = C_0 * V_hex
+# Total vaccine
+Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
 
 # Higuchi model (diffusion-controlled release)
 def higuchi_model(t):
@@ -51,14 +51,17 @@ def higuchi_model(t):
 def erosion_model(t):
     return k_erosion * t**n_erosion
 
-# Combined release profile
+# Combined release profile before cap
 def combined_release(t):
     Q_diff = higuchi_model(t)  # Diffusion contribution
     Q_eros = erosion_model(t)  # Erosion contribution
-    return Q_diff + Q_eros
+    Q_tot = Q_diff + Q_eros     # Total contributions 
 
-# Calculate cumulative release
-Q_release = combined_release(time_points)
+# Calculate cumulative release with cap
+Q_release = np.minimum(Q_tot, Vac, Vac / Q_tot, 1.0)
+
+# Release profile with cap
+scale = np.where(Q_tot > Vac, 
 
 # Plot the results
 plt.figure(figsize=(10, 6))
