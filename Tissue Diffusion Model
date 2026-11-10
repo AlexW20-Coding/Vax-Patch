@@ -1,3 +1,6 @@
-Ficks Laws for the diffusion equations
-First Law: J = -D * dC_dx    #J is the diffusion flux, D is the Diffusion coefficient, and C is the concentration
-Second Law: D * dt / dx**2    # shows how the diffusion changes over time is also dC/dt
+# Ficks Laws for the diffusion equations show for constant diffusion
+# First Law: J = -D * dC_dx    #J is the diffusion flux, D is the Diffusion coefficient, and C is the concentration
+# Second Law: D * dt / dx**2    # shows how the diffusion changes over time is also dC/dt
+# Need to look into a few python libraries/tools from what I can see needs to be able to be able to run the simulation
+# For computation: FEniCS, Firedrake, SfePy, Py-PDE, SciPy, PyTorch
+
