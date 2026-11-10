@@ -1,1 +1,3 @@
-
+Ficks Laws for the diffusion equations
+First Law: J = -D * dC_dx    #J is the diffusion flux, D is the Diffusion coefficient, and C is the concentration
+Second Law: D * dt / dx**2    # shows how the diffusion changes over time is also dC/dt
