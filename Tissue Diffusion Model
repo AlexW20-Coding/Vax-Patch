@@ -3,4 +3,47 @@
 # Second Law: D * dt / dx**2    # shows how the diffusion changes over time is also dC/dt
 # Need to look into a few python libraries/tools from what I can see needs to be able to be able to run the simulation
 # For computation: FEniCS, Firedrake, SfePy, Py-PDE, SciPy, PyTorch
+# First Trial
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters (adjustable)
+a = 0.0025       # Center to flat of base (cm)
+h = 0.025       # Height of microneedle (cm)
+b = 4.3          # Taper angle of base of microneedle
+i = 0.0015      # Height of microneedle tip (cm)
+p = 13          # Taper angle of tip of microneedle
+N = 1786        # Number of microneedles in the patch
+D = 1e-8       # Diffusion coefficient (cm²/s)
+C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
+C_S = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
+
+# Equations for Conversions from Parameters
+A = (2 * a) / np.sqrt(3)           # Initial base side length
+B = np.radians(b)           # Converting base angle to radians for equations
+P = np.radians(p)           # Converting tip angle to radians
+A_top = A - (h * np.tan(B))    # Initial tip side length 
+A_P = A_top - (i * np.tan(P))      # Tip side length as it decreases with taper angle
+
+# Surface area and Volume of base hexagonal microneedle
+S = h / np.cos(B)               # Slant height of the base microneedle
+A_base = 3 * (A + A_top) * S       # Area of the outer base microneedles
+V_base = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
+
+# Surface area and Volume of tip hexagonal microneedle
+S_tip = i / np.cos(P)        # Slant height of the tip
+A_tip = 3 * (A_P + A_top) * S_tip     # Full area of the sides of microneedle tip
+V_tip = (np.sqrt(3) / 2) * i * (A_top**2 + A_top * A_P + A_P**2)
+
+# Total surface area for the patch
+A_hex = A_base + A_tip
+A_total = N * A_hex
+
+# Volume of a single hexagonal microneedle
+V_hex = V_base + V_tip
+
+# Total vaccine
+Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
+
+#
 
