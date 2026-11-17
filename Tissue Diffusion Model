@@ -17,6 +17,7 @@ N = 1786        # Number of microneedles in the patch
 D = 1e-8       # Diffusion coefficient (cm²/s)
 C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
 C_S = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
+Sh =           # SHerwood number
 
 # Equations for Conversions from Parameters
 A = (2 * a) / np.sqrt(3)           # Initial base side length
@@ -45,5 +46,6 @@ V_hex = V_base + V_tip
 # Total vaccine
 Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
 
-#
+# Mass Transfer Cofficient
+K_D = (D * Sh * A_hex) / V_hex
 
