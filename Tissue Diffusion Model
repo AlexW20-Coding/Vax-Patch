@@ -1,52 +1,103 @@
-# Ficks Laws for the diffusion equations show for constant diffusion
-# First Law: J = -D * dC_dx    #J is the diffusion flux, D is the Diffusion coefficient, and C is the concentration
-# Second Law: D * dt / dx**2    # shows how the diffusion changes over time is also dC/dt
-# Need to look into a few python libraries/tools from what I can see needs to be able to be able to run the simulation
-# For computation: FEniCS, Firedrake, SfePy, Py-PDE, SciPy, PyTorch
-# First Trial
+#Second Test
+
+
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
-# Parameters (adjustable)
+#Parameters
 a = 0.0025       # Center to flat of base (cm)
-h = 0.025       # Height of microneedle (cm)
-b = 4.3          # Taper angle of base of microneedle
-i = 0.0015      # Height of microneedle tip (cm)
-p = 13          # Taper angle of tip of microneedle
-N = 1786        # Number of microneedles in the patch
-D = 1e-8       # Diffusion coefficient (cm²/s)
-C_0 = 10.0     # Initial vaccine concentration (mg/cm³)
-C_S = 5.0      # Solubility of vaccine in skin fluid (mg/cm³)
-Sh =           # SHerwood number
+h = 0.01        # Height of microneedle (cm)
+b = 4.3          # Taper angle of base of microneedle (degrees)
+i = 0.0015       # Height of microneedle tip (cm)
+p = 13           # Taper angle of tip of microneedle (degrees)
+N = 1786         # Number of microneedles in the patch
+D = 1e-8         # Diffusion coefficient (cm²/s)
+C_0 = 10.0       # Initial vaccine concentration (mg/cm³)
+C_S = 5.0        # Solubility of vaccine in skin fluid (mg/cm³)
+Sh = 1.2         # Sherwood number
 
-# Equations for Conversions from Parameters
-A = (2 * a) / np.sqrt(3)           # Initial base side length
-B = np.radians(b)           # Converting base angle to radians for equations
-P = np.radians(p)           # Converting tip angle to radians
-A_top = A - (h * np.tan(B))    # Initial tip side length 
-A_P = A_top - (i * np.tan(P))      # Tip side length as it decreases with taper angle
-
-# Surface area and Volume of base hexagonal microneedle
-S = h / np.cos(B)               # Slant height of the base microneedle
-A_base = 3 * (A + A_top) * S       # Area of the outer base microneedles
-V_base = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)
-
-# Surface area and Volume of tip hexagonal microneedle
-S_tip = i / np.cos(P)        # Slant height of the tip
-A_tip = 3 * (A_P + A_top) * S_tip     # Full area of the sides of microneedle tip
-V_tip = (np.sqrt(3) / 2) * i * (A_top**2 + A_top * A_P + A_P**2)
-
-# Total surface area for the patch
-A_hex = A_base + A_tip
-A_total = N * A_hex
-
-# Volume of a single hexagonal microneedle
-V_hex = V_base + V_tip
-
-# Total vaccine
+# Calculations
+A = (2 * a) / np.sqrt(3)           # Initial base side length (cm)
+B = np.radians(b)                  # Converting base angle to radians
+P = np.radians(p)                  # Converting tip angle to radians
+A_top = A - (h * np.tan(B))         # Initial tip side length (cm)
+A_P = A_top - (i * np.tan(P))       # Tip side length as it decreases with taper angle (cm)
+S = h / np.cos(B)                  # Slant height of the base microneedle (cm)
+A_base = 3 * (A + A_top) * S        # Area of the outer base microneedles (cm²)
+V_base = (np.sqrt(3) / 2) * h * (A**2 + A * A_top + A_top**2)  # Volume of the base of needle (cm³)
+S_tip = i / np.cos(P)               # Slant height of the tip (cm)
+A_tip = 3 * (A_P + A_top) * S_tip    # Full area of the sides of microneedle tip (cm²)
+V_tip = (np.sqrt(3) / 2) * i * (A_top**2 + A_top * A_P + A_P**2)  # Volume of tip of needle (cm³)
+A_hex = A_base + A_tip              # Surface area of microneedle (cm²)
+A_total = N * A_hex                 # Total surface area of patch (cm²)
+V_hex = V_base + V_tip              # Total volume of microneedle (cm³)
+Vac_mn = C_0 * V_hex                # Vaccine per needle (mg)
 Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
+# Mass Transfer Coefficient
+V_0 = V_hex                         # Characteristic volume (cm³)
+L_c = (6 * V_0 / np.pi)**(1/3)      # Characteristic length (cm)
+k_m = (Sh * D) / L_c                # Mass transfer coefficient (cm/s)
+#Spatial Grid Setup
+h_total = h + i                     # Total needle penetration depth (0.0115 cm = 0.115 mm)
+Patch_A = 1.0                       # Patch area on skin (cm^2)
+Derm_d = 0.15                       # Dermis depth (cm)
+nx = 450                            # Finer grid (~35 nodes inside the 0.115 mm needle zone)
+x = np.linspace(0, Derm_d, nx)
+dx = x[1] - x[0]
+needle_mask = (x <= h_total)        # Mask covering full needle height (base + tip)
+V_inj = Patch_A * h_total           # Volume of dermis pierced by needles (cm³)
 
-# Mass Transfer Cofficient
-K_D = (D * Sh * A_hex) / V_hex
+#Initial Conditions
+m_0 = Vac_mn                        # Initial mass of vaccine in one microneedle (mg)
+y0 = np.concatenate(([m_0], np.zeros(nx)))  # Initial state: [mass in needle, concentration in dermis]
 
+# Coupled ODE-PDE System
+def coupled_mn_transport(t, y):
+    m_rem = max(y[0], 0.0)          # Remaining solid mass in 1 needle (mg)
+    C = y[1:]                       # Vaccine concentration in dermis (mg/cm³)
+
+    # Current surface area of 1 dissolving needle (cm²)
+    A_t = A_hex * (m_rem / m_0)**(2/3) if m_rem > 0 else 0.0
+
+    # Average tissue concentration surrounding the needles
+    C_local = np.mean(C[needle_mask])
+
+    # Dissolution rate for 1 needle (mg/s) - stops if local fluid hits solubility C_S
+    driving_force = max(C_S - C_local, 0.0)
+    dm_dt = -k_m * A_t * driving_force if m_rem > 0 else 0.0
+
+    # Source term entering the dermis tissue (mg / (cm³ * s))
+    source = np.zeros_like(C)
+    total_release_rate = N * (-dm_dt)
+    source[needle_mask] = total_release_rate / V_inj
+
+    # 1D Fickian diffusion across the dermis (dC/dt = D * d²C/dx² + source)
+    dC_dt = np.zeros_like(C)
+    dC_dt[1:-1] = D * (C[2:] - 2 * C[1:-1] + C[:-2]) / (dx**2) + source[1:-1]
+
+    # Boundary conditions: zero-flux at skin surface (x=0) and bottom of dermis (x=Derm_d)
+    dC_dt[0] = 2 * D * (C[1] - C[0]) / (dx**2) + source[0]
+    dC_dt[-1] = 2 * D * (C[-2] - C[-1]) / (dx**2) + source[-1]
+
+    return np.concatenate(([dm_dt], dC_dt))
+
+# Simulation
+t_span = (0, 4 * 3600)                      # 4 hours in seconds
+t_eval = np.linspace(0, 4 * 3600, 500)      # 500 time points over 4 hours
+sol = solve_ivp(coupled_mn_transport, t_span, y0, t_eval=t_eval, method='BDF')
+# Graph
+depths_mm = [0.05, 0.115, 0.25, 0.50, 1.00]  # Target dermis depths to monitor (mm)
+plt.figure(figsize=(8, 4))
+for d_mm in depths_mm:
+    # Find the closest spatial grid index for each target depth
+    idx = np.argmin(np.abs((x * 10) - d_mm))
+    actual_depth = x[idx] * 10
+    plt.plot(sol.t / 60, sol.y[1 + idx, :], label=f"Depth = {actual_depth:.2f} mm")
+plt.xlabel("Time Inserted (minutes)")
+plt.ylabel("Dissolved Vaccine Concentration")
+plt.title("Dermal Vaccine Concentration Over Time at Various Depths")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
