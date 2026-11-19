@@ -1,21 +1,20 @@
-#Second Test
-
-
+# Working Model
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
-#Parameters
+# Parameters
 a = 0.0025       # Center to flat of base (cm)
-h = 0.01        # Height of microneedle (cm)
+h = 0.01         # Height of microneedle (cm)
 b = 4.3          # Taper angle of base of microneedle (degrees)
 i = 0.0015       # Height of microneedle tip (cm)
 p = 13           # Taper angle of tip of microneedle (degrees)
 N = 1786         # Number of microneedles in the patch
-D = 1e-8         # Diffusion coefficient (cm²/s)
+D = 1e-7         # Diffusion coefficient in pediatric dermis (cm²/s)
 C_0 = 10.0       # Initial vaccine concentration (mg/cm³)
 C_S = 5.0        # Solubility of vaccine in skin fluid (mg/cm³)
 Sh = 1.2         # Sherwood number
+t_dissolve_1to1 = 12 * 60  # ~12 min complete matrix erosion for 1:1 PVP:PVA (seconds)
 
 # Calculations
 A = (2 * a) / np.sqrt(3)           # Initial base side length (cm)
@@ -34,26 +33,35 @@ A_total = N * A_hex                 # Total surface area of patch (cm²)
 V_hex = V_base + V_tip              # Total volume of microneedle (cm³)
 Vac_mn = C_0 * V_hex                # Vaccine per needle (mg)
 Vac = C_0 * V_hex * N               # Total capacity for patch (mg)
-# Mass Transfer Coefficient
+
+# Mass Transfer & 1:1 PVP:PVA Matrix Erosion Constants
 V_0 = V_hex                         # Characteristic volume (cm³)
 L_c = (6 * V_0 / np.pi)**(1/3)      # Characteristic length (cm)
 k_m = (Sh * D) / L_c                # Mass transfer coefficient (cm/s)
-#Spatial Grid Setup
+m_0 = Vac_mn                        # Initial mass of vaccine in one microneedle (mg)
+k_erosion = (3 * m_0) / (A_hex * t_dissolve_1to1)  # Max solid release flux of 1:1 PVP:PVA (mg / (cm² * s))
+
+# Spatial Grid Setup
 h_total = h + i                     # Total needle penetration depth (0.0115 cm = 0.115 mm)
-Patch_A = 1.0                       # Patch area on skin (cm^2)
-Derm_d = 0.15                       # Dermis depth (cm)
-nx = 450                            # Finer grid (~35 nodes inside the 0.115 mm needle zone)
+Patch_A = 1.0                       # Patch area on skin (cm²)
+Derm_d = 0.08                       # Pediatric dermis depth (0.08 cm = 0.8 mm)
+nx = 450                            # Spatial grid nodes
+k_clear = 2.0e-4                    # Lymphatic/capillary clearance rate (1/s)
 x = np.linspace(0, Derm_d, nx)
 dx = x[1] - x[0]
 needle_mask = (x <= h_total)        # Mask covering full needle height (base + tip)
-V_inj = Patch_A * h_total           # Volume of dermis pierced by needles (cm³)
 
-#Initial Conditions
-m_0 = Vac_mn                        # Initial mass of vaccine in one microneedle (mg)
+# Control-volume weights for exact mass conservation
+cv_weights = np.ones(nx)
+cv_weights[0] = 0.5
+cv_weights[-1] = 0.5
+V_inj_discrete = Patch_A * np.sum(cv_weights[needle_mask]) * dx
+
+# Initial Conditions
 y0 = np.concatenate(([m_0], np.zeros(nx)))  # Initial state: [mass in needle, concentration in dermis]
 
 # Coupled ODE-PDE System
-def coupled_mn_transport(t, y):
+def coupled_mn_transport(t, y, C_S_val):
     m_rem = max(y[0], 0.0)          # Remaining solid mass in 1 needle (mg)
     C = y[1:]                       # Vaccine concentration in dermis (mg/cm³)
 
@@ -63,40 +71,56 @@ def coupled_mn_transport(t, y):
     # Average tissue concentration surrounding the needles
     C_local = np.mean(C[needle_mask])
 
-    # Dissolution rate for 1 needle (mg/s) - stops if local fluid hits solubility C_S
-    driving_force = max(C_S - C_local, 0.0)
-    dm_dt = -k_m * A_t * driving_force if m_rem > 0 else 0.0
+    # Dissolution rate limited by whichever is slower: vaccine solubility or 1:1 PVP:PVA matrix erosion
+    driving_force = max(C_S_val - C_local, 0.0)
+    flux_solubility = k_m * driving_force
+    effective_flux = min(flux_solubility, k_erosion)
+    dm_dt = -A_t * effective_flux if m_rem > 0 else 0.0
 
     # Source term entering the dermis tissue (mg / (cm³ * s))
     source = np.zeros_like(C)
     total_release_rate = N * (-dm_dt)
-    source[needle_mask] = total_release_rate / V_inj
+    source[needle_mask] = total_release_rate / V_inj_discrete
 
-    # 1D Fickian diffusion across the dermis (dC/dt = D * d²C/dx² + source)
+    # 1D Fickian diffusion across the dermis + lymphatic/capillary uptake
     dC_dt = np.zeros_like(C)
-    dC_dt[1:-1] = D * (C[2:] - 2 * C[1:-1] + C[:-2]) / (dx**2) + source[1:-1]
+    dC_dt[1:-1] = D * (C[2:] - 2 * C[1:-1] + C[:-2]) / (dx**2) + source[1:-1] - k_clear * C[1:-1]
 
     # Boundary conditions: zero-flux at skin surface (x=0) and bottom of dermis (x=Derm_d)
-    dC_dt[0] = 2 * D * (C[1] - C[0]) / (dx**2) + source[0]
-    dC_dt[-1] = 2 * D * (C[-2] - C[-1]) / (dx**2) + source[-1]
+    dC_dt[0] = 2 * D * (C[1] - C[0]) / (dx**2) + source[0] - k_clear * C[0]
+    dC_dt[-1] = 2 * D * (C[-2] - C[-1]) / (dx**2) + source[-1] - k_clear * C[-1]
 
     return np.concatenate(([dm_dt], dC_dt))
 
-# Simulation
-t_span = (0, 4 * 3600)                      # 4 hours in seconds
-t_eval = np.linspace(0, 4 * 3600, 500)      # 500 time points over 4 hours
-sol = solve_ivp(coupled_mn_transport, t_span, y0, t_eval=t_eval, method='BDF')
-# Graph
-depths_mm = [0.05, 0.115, 0.25, 0.50, 1.00]  # Target dermis depths to monitor (mm)
+# Simulation & Graph
+t_span = (0, 6 * 3600)
+t_eval = np.linspace(0, 6 * 3600, 500)
+solubilities = [1.0, 2.5, 5.0, 10.0, 20.0]
+
 plt.figure(figsize=(8, 4))
-for d_mm in depths_mm:
-    # Find the closest spatial grid index for each target depth
-    idx = np.argmin(np.abs((x * 10) - d_mm))
-    actual_depth = x[idx] * 10
-    plt.plot(sol.t / 60, sol.y[1 + idx, :], label=f"Depth = {actual_depth:.2f} mm")
-plt.xlabel("Time Inserted (minutes)")
-plt.ylabel("Dissolved Vaccine Concentration")
-plt.title("Dermal Vaccine Concentration Over Time at Various Depths")
+
+for C_S_val in solubilities:
+    sol = solve_ivp(
+        coupled_mn_transport,
+        t_span,
+        y0,
+        t_eval=t_eval,
+        args=(C_S_val,),
+        method='BDF'
+    )
+    C_xt = sol.y[1:, :]
+    uptake_rate = k_clear * Patch_A * np.sum(C_xt * cv_weights[:, None], axis=0) * dx
+    cum_delivered = np.zeros_like(sol.t)
+    dt = np.diff(sol.t)
+    cum_delivered[1:] = np.cumsum(0.5 * (uptake_rate[:-1] + uptake_rate[1:]) * dt)
+    pct_delivered = (cum_delivered / Vac) * 100
+    plt.plot(sol.t / 3600, pct_delivered, label=f"$C_S$ = {C_S_val} mg/cm³")
+
+plt.axhline(50, color='gray', linestyle='--', alpha=0.5, label="50% Delivered ($t_{50}$)")
+plt.axhline(90, color='gray', linestyle=':', alpha=0.5, label="90% Delivered ($t_{90}$)")
+plt.xlabel("Time After Insertion (hours)")
+plt.ylabel("Cumulative Vaccine Absorbed (%)")
+plt.title("Vaccine Delivery Time (1:1 PVP:PVA)")
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
