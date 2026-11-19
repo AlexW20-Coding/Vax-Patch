@@ -5,6 +5,7 @@
 # For computation: FEniCS, Firedrake, SfePy, Py-PDE, SciPy, PyTorch
 # First Trial
 import numpy as np
+from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
 # Parameters (adjustable)
